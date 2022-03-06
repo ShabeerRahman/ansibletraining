@@ -1,57 +1,56 @@
 ---
 # tasks file for tomcat
-- name: install open-jdk, wget
-  ansible.builtin.yum:
-    name:
-      - java-1.8.0-openjdk-devel
-      - wget
-    state: present
-- name: create a group for tomcat
-  ansible.builtin.group:
-    name: "{{ tomcat_group }}"
-    state: present
-    system: true
-- name: create a tomcat user
-  ansible.builtin.user:
-    name: "{{ tomcat_user }}"
-    home: "{{ tomcat_home }}"
-    system: true
-- name: download latest tomcat
-  ansible.builtin.command: wget {{ tomcat_download_url }}
-- name: unzip tomcat
-  ansible.builtin.command: tar xvf "apache-tomcat-{{ tomcat_version }}.tar.gz" -C /usr/share/
-- name: check if the soflink exists
-  ansible.builtin.stat:
-    path: "{{ tomcat_home }}-{{ tomcat_version }}"
-  register: linkfile
+- name: enable open Jdk version 11
+  ansible.builtin.command:  amazon-linux-extras enable "{{ java_version }}"
+  when: ansible_facts['distribution'] == "Amazon"
 - debug:
-    var: linkfile
-- name: creating softlink
-  ansible.builtin.command: ln -s "{{ tomcat_home }}-{{ tomcat_version }}" "{{ tomcat_home }}"
-  when: linkfile.stat.exists == False
-- name: channge permissions
-  ansible.builtin.command: chown -R tomcat:tomcat "{{ tomcat_home }}"
-- name: channge permissions
-  ansible.builtin.command: chown -R tomcat:tomcat "{{ tomcat_home }}-{{ tomcat_version }}"
-- name: copy tomcat service file to directory
+    var: ansible_facts['distribution']
+#- name: Install open JDK 11
+   #ansible.builtin.yum:
+   #name: java-openjdk11
+   #state: present
+- name: Add tomcat  group
+  ansible.builtin.group:
+    name: "{{tomcat_group}}"
+    state: present
+    system: true
+- name: Add Tomcat user
+  ansible.builtin.user:
+    name: "{{tomcat_user}}"
+    group:
+    create_home: true
+    home: "{{tomcat_home}}"
+    system: true
+    shell: /bin/bash
+- name: Download latest version of tomcat
+  ansible.builtin.command: wget "{{ tomcat_url }}"
+- name: create sym link
+  ansible.builtin.unarchive:
+    src: "{{ tomcat_srcpath }}/{{tomcat_zipfile}}.tar.gz"
+    dest: "{{ tomcat_destpath }}"
+    owner: "{{ tomcat_user }}"
+    group: "{{ tomcat_group }}"
+    remote_src: true
+- name: create tomcat service file
   ansible.builtin.template:
-    src: tomcat.service.j2
-    dest: /etc/systemd/system/tomcat.service
-- name: copy tomcat users xml file to tomcat conf directory
+    src: "{{ tomcat_servicefiletemplate }}"
+    dest: "{{ tomcat_servicepath }}/{{ tomcat_servicefile }}"
+- name: create tomcat users file
   ansible.builtin.template:
     src: tomcat-users.xml.j2
-    dest: "{{tomcat_home }}/conf/tomcat-users.xml"
-- name: copy tomcat server.xml to tomcat conf directory
+    dest: "{{ tomcat_destpath }}/{{ tomcat_zipfile }}/conf/tomcat-users.xml"
+- name: create tomcat server.xml file
   ansible.builtin.template:
     src: server.xml.j2
-    dest: "{{tomcat_home }}/conf/server.xml"
-- name: start tomcat service
-  ansible.builtin.service:
-    name: tomcat
-    state: started
-    enabled: yes
-- name: example for a loop in jinja 2 template
+    dest: "{{ tomcat_destpath }}/{{ tomcat_zipfile }}/conf/server.xml"
+  notify: start tomcat service
+- name: add users to the server
+  ansible.builtin.user:
+    name: "{{item}}"
+    state: present
+  with_items:
+    - "{{ users }}"
+- name: copy files
   ansible.builtin.template:
     src: files.txt.j2
-    dest: "{{tomcat_home}}/files.txt"
-
+    dest: /tmp/files.txt

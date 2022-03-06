@@ -1,6 +1,7 @@
-- name: Install tomcat,enable and start the service
+---
+- name: Install tomcat
   hosts: webserver
   become: true
-
   roles:
     - tomcat
+
