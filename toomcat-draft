@@ -1,52 +1,50 @@
 ---
 - name: Install and configure Tomcat Server
   hosts: webservers
+  gather_facts: True
+  become: true
   tasks:
-    - name:  Update latest package in Server
+    - name: Update latest package in Server
       ansible.builtin.yum:
-        name: *
+        name: '*'
         state: latest
     - name: Enable openjdk11 in amazon linux extras
       ansible.builtin.command: amazon-linux-extras enable java-openjdk11
-    - name: Install openjdk
+    - name: Install openjdk11
       ansible.builtin.yum:
-        name: java-openjdk11
-        state: absent
-    - name: add tomcat group
-      ansible.builtin.groupadd:
+        name: java-11-openjdk
+        state: present
+    - name: Add tomcat group
+      ansible.builtin.group:
         name: tomcat
         state: present
         system: yes
-    - name : add tomcat user
+    - name: Add tomcat user
       ansible.builtin.user:
         name: tomcat
         group: tomcat
         home: /usr/share/tomcat
         system: yes
         shell: /usr/bin/false
-    - name: install wget
+    - name: Install wget
       ansible.builtin.yum:
         name: wget
         state: installed
     - name: Download latest apache tomcat
-      ansible.builtin.command: wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.64/bin/apache-tomcat-9.0.64.tar.gz
+      ansible.builtin.command: wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.65/bin/apache-tomcat-9.0.65.tar.gz
     - name: extract apache tomcat
       ansible.builtin.unarchive:
-        src: /home/ec2-user/apache-tomcat-9.0.64.tar.gz
+        src: /home/ec2-user/apache-tomcat-9.0.65.tar.gz
         dest: /usr/share/
-    - name: create symbolic link for tomcat
-      ansible.builtin.file:
-        src: /usr/share/apache-tomcat-9.0.64
-        dest: /usr/share/tomcat
-        state: link
         owner: tomcat
         group: tomcat
-    - name: create tomcat service 
+        remote_src: yes
+    - name: Create tomcat service
       ansible.builtin.copy:
         src: tomcat.service
         dest: /etc/systemd/system/tomcat.service
-    - name: enable and start tomcat Service 
+    - name: enable tomcat service
       ansible.builtin.service:
         name: tomcat
-        enable: yes
+        enabled: yes
         state: started
